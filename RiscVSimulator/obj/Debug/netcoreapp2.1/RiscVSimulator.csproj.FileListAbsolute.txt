@@ -1,0 +1,14 @@
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.csproj.CoreCompileInputs.cache
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.RazorAssemblyInfo.cache
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.RazorAssemblyInfo.cs
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.AssemblyInfoInputs.cache
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.AssemblyInfo.cs
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.csprojAssemblyReference.cache
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\bin\Debug\netcoreapp2.1\RiscVSimulator.deps.json
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\bin\Debug\netcoreapp2.1\RiscVSimulator.runtimeconfig.json
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\bin\Debug\netcoreapp2.1\RiscVSimulator.runtimeconfig.dev.json
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\bin\Debug\netcoreapp2.1\RiscVSimulator.dll
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\bin\Debug\netcoreapp2.1\RiscVSimulator.pdb
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.RazorTargetAssemblyInfo.cache
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.dll
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Debug\netcoreapp2.1\RiscVSimulator.pdb
