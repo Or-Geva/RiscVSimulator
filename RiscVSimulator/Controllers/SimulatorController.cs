@@ -47,20 +47,18 @@ namespace RiscVSimulator.Controllers
                         var directive = Healper.GetDirective(req.Program, ref cursor);
                         if (DirectiveNumber.ContainsKey(directive))
                         {
-                            if(labelTable[labelTable.Keys.Last()] == null)
-                                labelTable[labelTable.Keys.Last()].Address = res.StackStaticDataFreePosition;
+                            if (newLabel)
+                            {
+                                labelTable[labelTable.Keys.Last()] = new Lable { Address = Healper.GetAddress(res, memorySection) };
+                                newLabel = false;
+                            }
                             var numbers = Healper.GetListOfNumber(req.Program, ref cursor);
                             foreach (var number in numbers)
                             {
                                 var longBytes = BitConverter.GetBytes(number);
                                 for (int j = 0; j < DirectiveNumber[directive]; j++)
                                 {
-                                    if (longBytes.Length > j)
-                                        res.Memory.Add((int)memorySection + res.StackStaticDataFreePosition, longBytes[j]);
-                                    else
-                                        res.Memory.Add((int)memorySection + res.StackStaticDataFreePosition, 0);
-
-                                    res.StackStaticDataFreePosition++;
+                                    PutIntoAddress(res, memorySection, longBytes.Length > j ? longBytes[j] : (byte) 0);//we fill the memory with space if the number is not big enough  to fit the DirectiveNumber
                                 }
                             }
                         }
@@ -86,27 +84,28 @@ namespace RiscVSimulator.Controllers
                         {
                             commandInBinarryFormat = ParseCommandWithImm(req.Program, ref cursor, out string optionalLabel,out string command);
                             if(optionalLabel != null)
-                                uncompleteParse.Add((int)memorySection + res.StackTextFreePosition * 4, (optionalLabel, command));
+                                uncompleteParse.Add(Healper.GetAddress(res, memorySection), (optionalLabel, command));
                         }
-
-                        res.Memory.Add((int)memorySection + res.StackTextFreePosition * 4, commandInBinarryFormat);
-                        
                         if (newLabel)
                         {
-                            labelTable[label] = new Lable{Address = (int)memorySection + res.StackTextFreePosition * 4};
+                            labelTable[label] = new Lable {Address = Healper.GetAddress(res, memorySection)};
                             newLabel = false;
                         }
-                        res.StackTextFreePosition++;
+                        var longBytes = BitConverter.GetBytes(commandInBinarryFormat);//Enter Command to Stack
+                        for (int j = 0; j < 4; j++)
+                        {
+                            PutIntoAddress(res, memorySection, longBytes[j]);
+                        }
                     }
                     GoToNextCommand(req.Program, ref cursor);
                 }
                 catch (SimulatorException e)
                 {
-                    return BadRequest(new ErrorInResult {Line = i, Message = e.ErrorMessage});
+                    return BadRequest(new ErrorInResult {Line = i+1, Message = e.ErrorMessage});
                 }
                 catch (Exception e)
                 {
-                    return BadRequest(new ErrorInResult {Line = i, Message = "Internal Error"});
+                    return BadRequest(new ErrorInResult {Line = i+1, Message = "Internal Error"});
                 }
             }
 
@@ -115,22 +114,50 @@ namespace RiscVSimulator.Controllers
             return Ok(res);
         }
 
+        private void PutIntoAddress(RiscVProgramResult res, MemorySection memorySection, byte longByte)
+        {
+            switch (memorySection)
+            {
+                case MemorySection.Text:
+                    res.Memory.Add((int)memorySection + res.StackTextFreePosition, longByte);
+                    res.StackTextFreePosition++;
+                    break;
+                case MemorySection.Static:
+                    res.Memory.Add((int)memorySection + res.StackStaticDataFreePosition, longByte);
+                    res.StackStaticDataFreePosition++;
+                    break;
+                default:
+                    throw new SimulatorException { ErrorMessage = $"'{memorySection}' cannot find fit section to return from f. GetAddress" };
+            }
+        }
+
         private void DoSecondParse(RiscVProgramResult res, Dictionary<int, (string, string)> uncompleteParse,
             Dictionary<string, Lable> labelTable)
         {
+            int commandToFix = 0;
+          
             foreach (var commandToUpdate in uncompleteParse)
             {
+                for (int j = 0; j < 4; j++)
+                {
+                    commandToFix |= res.Memory[commandToUpdate.Key + j] << 8 * j;
+                }
                 switch (commandToUpdate.Value.Item2)
                 {
                     case "addi":
                         if (Healper.IsLowLabelCommand(commandToUpdate.Value.Item1, out string label))
-                            res.Memory[commandToUpdate.Key] = res.Memory[commandToUpdate.Key] | labelTable[label].Address << 20;
+                            commandToFix |= labelTable[label].Address << 20;
                         else
                         {
-                            labelTable[label].Address  = labelTable[label].Address >> 20;
-                            res.Memory[commandToUpdate.Key] = res.Memory[commandToUpdate.Key] | labelTable[label].Address << 20;
+                            labelTable[label].Address  = labelTable[label].Address & 16773120;// we cant fit 20 high bit to imm 12 bit so we cut the bits from 13-20 (the high bits) and move the 12 to the left to fit the imm 12 bits
+                            commandToFix |= labelTable[label].Address << 8;
                         }
                         break;
+                }
+                var longBytes = BitConverter.GetBytes(commandToFix);//Enter Command to Stack
+                for (int j = 0; j < 4 ; j++)
+                {
+                    res.Memory[commandToUpdate.Key + j] = longBytes[j];
                 }
             }
         }
@@ -163,7 +190,7 @@ namespace RiscVSimulator.Controllers
 
         private int ParseCommandWithNoImm(string reqProgram, ref int cursor)
         {
-            var index = Healper.FindNextSpace(reqProgram, ref cursor);
+            var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
             string ins = reqProgram.Substring(cursor, index - cursor);
             int result;
 
@@ -181,7 +208,7 @@ namespace RiscVSimulator.Controllers
 
         private int ParseCommandWithImm(string reqProgram, ref int cursor, out string label, out string command)
         {
-            var index = Healper.FindNextSpace(reqProgram, ref cursor);
+            var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
             string ins = reqProgram.Substring(cursor, index - cursor);
             cursor = index + 1;
             label = null;
@@ -197,7 +224,7 @@ namespace RiscVSimulator.Controllers
         }
     }
 
-    enum MemorySection
+    public enum MemorySection
     {
         Text = 0x10000,
         Static = 0x10000000,
