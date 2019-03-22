@@ -79,10 +79,10 @@ namespace RiscVSimulator.Controllers
                     }
                     else
                     {
-                        commandInBinarryFormat = ParseCommandWithNoImm(req.Program, ref cursor);
+                        commandInBinarryFormat = ParseCommandWithNoImm(req.Program, ref cursor,res.Register);
                         if (commandInBinarryFormat == 0)
                         {
-                            commandInBinarryFormat = ParseCommandWithImm(req.Program, ref cursor, out string optionalLabel,out string command);
+                            commandInBinarryFormat = ParseCommandWithImm(req.Program, ref cursor, out string optionalLabel,out string command,res.Register);
                             if(optionalLabel != null)
                                 uncompleteParse.Add(Healper.GetAddress(res, memorySection), (optionalLabel, command));
                         }
@@ -188,7 +188,7 @@ namespace RiscVSimulator.Controllers
                 }
         }
 
-        private int ParseCommandWithNoImm(string reqProgram, ref int cursor)
+        private int ParseCommandWithNoImm(string reqProgram, ref int cursor, Register[] resRegister)
         {
             var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
             string ins = reqProgram.Substring(cursor, index - cursor);
@@ -197,7 +197,7 @@ namespace RiscVSimulator.Controllers
             switch (ins)
             {
                 case "add":
-                    result = Instructions.AddInstruction(reqProgram, ref cursor);
+                    result = Instructions.AddInstruction(reqProgram, ref cursor, resRegister);
                     break;
                 default:
                     return 0;
@@ -206,7 +206,8 @@ namespace RiscVSimulator.Controllers
             return result;
         }
 
-        private int ParseCommandWithImm(string reqProgram, ref int cursor, out string label, out string command)
+        private int ParseCommandWithImm(string reqProgram, ref int cursor, out string label, out string command,
+            Register[] resRegister)
         {
             var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
             string ins = reqProgram.Substring(cursor, index - cursor);
@@ -217,7 +218,7 @@ namespace RiscVSimulator.Controllers
             {
                 case "addi":
                     command = ins;
-                    return Instructions.AddiInstruction(reqProgram, ref cursor,out label);
+                    return Instructions.AddiInstruction(reqProgram, ref cursor,out label, resRegister);
                 default:
                     return 0;
             }

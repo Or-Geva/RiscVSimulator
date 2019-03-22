@@ -7,7 +7,6 @@ namespace RiscVSimulator.Model
 {
     public class RiscVProgram
     {
-        public Register[] Registers { get; set; }
         public string Program { get; set; }
         public bool DebuggingMode { get; set; }
         public int StackTextFreePosition { get; set; }
