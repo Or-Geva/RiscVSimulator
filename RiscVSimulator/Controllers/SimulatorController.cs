@@ -1,16 +1,20 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Cors;
 using RiscVSimulator.Model;
 using RiscVSimulator.Utils;
-using Microsoft.AspNetCore.Mvc;
 
 namespace RiscVSimulator.Controllers
 
 {
-
+    [EnableCors("SiteCorsPolicy")]
     [Route("api/[controller]")]
     [ApiController]
     public class SimulatorController : Controller
@@ -28,7 +32,9 @@ namespace RiscVSimulator.Controllers
             var memorySection = MemorySection.Text;
             Dictionary<string, Lable> labelTable = new Dictionary<string, Lable>();
             Dictionary<int, (string,string)> uncompleteParse = new Dictionary<int, (string, string)>();
-            RiscVProgramResult res = new RiscVProgramResult();
+            RiscVProgramResult res = new RiscVProgramResult(req);
+            List<RiscVProgramResult> debugRes =new List<RiscVProgramResult>();
+
             bool newLabel = false;
             for (int i = 0; i < req.Program.Split('\n').Length; i++)
             {
@@ -107,10 +113,14 @@ namespace RiscVSimulator.Controllers
                 {
                     return BadRequest(new ErrorInResult {Line = i+1, Message = "Internal Error"});
                 }
+                if(req.DebugMode)
+                    debugRes.Add(new RiscVProgramResult(res));
             }
 
             DoSecondParse(res, uncompleteParse, labelTable);
 
+            if(req.DebugMode)
+                return Ok(debugRes);
             return Ok(res);
         }
 
@@ -224,6 +234,7 @@ namespace RiscVSimulator.Controllers
             }
         }
     }
+
 
     public enum MemorySection
     {

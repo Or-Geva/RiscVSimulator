@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 namespace RiscVSimulator.Model
 {
+    [Serializable]
     public class Register
     {
         public string Name { get; set; }
