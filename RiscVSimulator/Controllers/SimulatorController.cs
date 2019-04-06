@@ -31,7 +31,7 @@ namespace RiscVSimulator.Controllers
             var commandInBinarryFormat = 0;
             var memorySection = MemorySection.Text;
             Dictionary<string, Lable> labelTable = new Dictionary<string, Lable>();
-            Dictionary<int, (string,string)> uncompleteParse = new Dictionary<int, (string, string)>();
+            Dictionary<int, (string,string,int)> uncompleteParse = new Dictionary<int, (string, string,int)>();
             RiscVProgramResult res = new RiscVProgramResult(req);
             List<RiscVProgramResult> debugRes =new List<RiscVProgramResult>();
 
@@ -90,7 +90,7 @@ namespace RiscVSimulator.Controllers
                         {
                             commandInBinarryFormat = ParseCommandWithImm(req.Program, ref cursor, out string optionalLabel,out string command,res.Register);
                             if(optionalLabel != null)
-                                uncompleteParse.Add(Healper.GetAddress(res, memorySection), (optionalLabel, command));
+                                uncompleteParse.Add(Healper.GetAddress(res, memorySection), (optionalLabel, command,i));
                         }
                         if (newLabel)
                         {
@@ -117,9 +117,20 @@ namespace RiscVSimulator.Controllers
                     debugRes.Add(new RiscVProgramResult(res));
             }
 
-            DoSecondParse(res, uncompleteParse, labelTable);
+            try
+            {
+                DoSecondParse(res, debugRes, req.DebugMode, uncompleteParse, labelTable);
+            }
+            catch (ErrorInResult e)
+            {
+                return BadRequest(new ErrorInResult { Line = e.Line + 1, Message = e.Message });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ErrorInResult { Message = "Internal Error" });
+            }
 
-            if(req.DebugMode)
+            if (req.DebugMode)
                 return Ok(debugRes);
             return Ok(res);
         }
@@ -141,35 +152,69 @@ namespace RiscVSimulator.Controllers
             }
         }
 
-        private void DoSecondParse(RiscVProgramResult res, Dictionary<int, (string, string)> uncompleteParse,
+        private void DoSecondParse(RiscVProgramResult res,List<RiscVProgramResult> debugRes,bool DebugMode,Dictionary<int, (string, string, int)> uncompleteParse,
             Dictionary<string, Lable> labelTable)
         {
             int commandToFix = 0;
-          
+
             foreach (var commandToUpdate in uncompleteParse)
             {
-                for (int j = 0; j < 4; j++)
+                try
                 {
-                    commandToFix |= res.Memory[commandToUpdate.Key + j] << 8 * j;
-                }
-                switch (commandToUpdate.Value.Item2)
-                {
-                    case "addi":
-                        if (Healper.IsLowLabelCommand(commandToUpdate.Value.Item1, out string label))
-                            commandToFix |= labelTable[label].Address << 20;
-                        else
+                    for (int j = 0; j < 4; j++) //read command from memory, each command (32b) needs 4 bytes
+                    {
+                        commandToFix |= res.Memory[commandToUpdate.Key + j] << 8 * j;
+                    }
+
+                    switch (commandToUpdate.Value.Item2)
+                    {
+                        case "addi":
+                            if (Healper.IsLowLabelCommand(commandToUpdate.Value.Item1, out string label))
+                                commandToFix |= labelTable[label].Address << 20;
+                            else
+                            {
+                                labelTable[label].Address =
+                                    labelTable[label].Address &
+                                    16773120; // we cant fit 20 high bit to imm 12 bit so we cut the bits from 12-19 (the high bits) and move them to the left(20-31) to fit the imm 12 bits
+                                commandToFix |= labelTable[label].Address << 8;
+                            }
+
+                            break;
+                    }
+
+                    var longBytes = BitConverter.GetBytes(commandToFix); //Enter Command to Stack
+                    if (DebugMode)
+                    {
+                        foreach (var snapshotMemory in debugRes)
                         {
-                            labelTable[label].Address  = labelTable[label].Address & 16773120;// we cant fit 20 high bit to imm 12 bit so we cut the bits from 13-20 (the high bits) and move the 12 to the left to fit the imm 12 bits
-                            commandToFix |= labelTable[label].Address << 8;
+                            if (debugRes.IndexOf((snapshotMemory)) >= commandToUpdate.Value.Item3)
+                            {
+                                for (int j = 0; j < 4; j++)
+                                {
+                                    snapshotMemory.Memory[commandToUpdate.Key + j] = longBytes[j];
+                                }
+                            }
                         }
-                        break;
+                    }
+                    else
+                    {
+                        for (int j = 0; j < 4; j++)
+                        {
+                            res.Memory[commandToUpdate.Key + j] = longBytes[j];
+                        }
+                    }
                 }
-                var longBytes = BitConverter.GetBytes(commandToFix);//Enter Command to Stack
-                for (int j = 0; j < 4 ; j++)
+
+                catch (SimulatorException e)
                 {
-                    res.Memory[commandToUpdate.Key + j] = longBytes[j];
+                    throw new ErrorInResult {Line = commandToUpdate.Value.Item3, Message = e.ErrorMessage};
+                }
+                catch (Exception e)
+                {
+                    throw new ErrorInResult { Line = commandToUpdate.Value.Item3, Message = "Internal Error" };
                 }
             }
+
         }
 
 
@@ -190,7 +235,7 @@ namespace RiscVSimulator.Controllers
             if (text != "")
                 foreach (var letter in text)
                 {
-                    if (letter == ' ' || letter == '\t')
+                    if (letter == ' ' || letter == '\t' || letter == '\r')
                         continue;
                     if(letter == '#')
                         break;
@@ -201,18 +246,27 @@ namespace RiscVSimulator.Controllers
         private int ParseCommandWithNoImm(string reqProgram, ref int cursor, Register[] resRegister)
         {
             var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
-            string ins = reqProgram.Substring(cursor, index - cursor);
+            string ins = reqProgram.Substring(cursor, index - cursor).ToLower();
             int result;
 
             switch (ins)
             {
                 case "add":
-                    result = Instructions.AddInstruction(reqProgram, ref cursor, resRegister);
+                case "sub":
+                case "sll":
+                case "slt":
+                case "sltu":
+                case "xor":
+                case "srl":
+                case "sra":
+                case "or":
+                case "and":
+                    cursor = index + 1;
+                    result = Instructions.RInstruction(reqProgram, ref cursor, resRegister, ins);
                     break;
                 default:
                     return 0;
-            }
-            cursor = index + 1;
+            }            
             return result;
         }
 
@@ -230,7 +284,7 @@ namespace RiscVSimulator.Controllers
                     command = ins;
                     return Instructions.AddiInstruction(reqProgram, ref cursor,out label, resRegister);
                 default:
-                    return 0;
+                    throw new SimulatorException { ErrorMessage = $"'{ins}' is invalid instruction" };
             }
         }
     }

@@ -54,13 +54,19 @@ namespace RiscVSimulator.Utils
 
          public static int FindEndOfInstruction(string content, ref int cursor)
          {
-             var end = content.IndexOf("\n", cursor, StringComparison.InvariantCultureIgnoreCase);
+             var end = content.IndexOf("\r", cursor, StringComparison.InvariantCultureIgnoreCase);
+             if (end != -1)
+                 return end;
+             end = content.IndexOf(" ", cursor, StringComparison.InvariantCultureIgnoreCase);
              if (end != -1)
                  return end;
             end = content.IndexOf("#", cursor, StringComparison.InvariantCultureIgnoreCase);
              if (end != -1)
                  return end;
-             end = content.IndexOf(" ", cursor, StringComparison.InvariantCultureIgnoreCase);
+             end = content.IndexOf("\t", cursor, StringComparison.InvariantCultureIgnoreCase);
+             if (end != -1)
+                 return end;
+            end = content.IndexOf("\n", cursor, StringComparison.InvariantCultureIgnoreCase);
              if (end != -1)
                  return end;
             return content.Length;
@@ -72,7 +78,7 @@ namespace RiscVSimulator.Utils
         }
         public static void SkipBlank(string content, ref int cursor, ref int lineNumber)
         {
-            while (content[cursor] == ' ' || content[cursor] == '\t' || content[cursor] == '\n')
+            while (content[cursor] == ' ' || content[cursor] == '\r' || content[cursor] == '\t' || content[cursor] == '\n')
             {
                 if (content[cursor] == '\n')
                     lineNumber++;
@@ -129,6 +135,8 @@ namespace RiscVSimulator.Utils
             {
                 cursor = index + 1;
                 label = label.Substring(0, label.Length-1);
+                if (string.IsNullOrWhiteSpace(label))
+                    throw new SimulatorException { ErrorMessage = $"Label cannot be empty" };
                 return true;
             }
             return false;
@@ -137,17 +145,26 @@ namespace RiscVSimulator.Utils
 
         public static bool IsLowLabelCommand(string value, out string label)
         {
-            if (value.Substring(0, 4) == "%lo(" && value[value.Length - 1] == ')')
+            label = "";
+            try
             {
-                label = value.Substring(4, value.Length - 5);
-                return true;
+                if (value.Substring(0, 4) == "%lo(" && value[value.Length - 1] == ')')
+                {
+                    label = value.Substring(4, value.Length - 5);
+                    return true;
+                }
+
+                if (value.Substring(0, 4) == "%hi(" && value[value.Length - 1] == ')')
+                {
+                    label = value.Substring(4, value.Length - 5);
+                    return false;
+                }
+                throw new Exception();
             }
-            if (value.Substring(0, 4) == "%hi(" && value[value.Length - 1] == ')')
+            catch (Exception e)
             {
-                label = value.Substring(4, value.Length - 5);
-                return false;
+                throw new SimulatorException { ErrorMessage = $"'{value}' is not recognize argument" };
             }
-            throw new SimulatorException { ErrorMessage = $"'{value}' is not recognize command" };
         }
 
         public static int GetAddress(RiscVProgramResult res, MemorySection memorySection)
@@ -160,6 +177,35 @@ namespace RiscVSimulator.Utils
                     return (int)memorySection + res.StackStaticDataFreePosition;
                 default:
                     throw new SimulatorException { ErrorMessage = $"'{memorySection}' cannot find fit section to return from f. GetAddress" };
+            }
+        }
+
+        public static int CalculatRComand(int num1, int num2, string commandName)
+        {
+            switch (commandName)
+            {
+                case "add":
+                    return num1 + num2;
+                case "sub":
+                    return num1 - num2;
+                case "sll":
+                    return num1 << num2;
+                case "slt":
+                    return num1 < num2 ? 1 : 0;
+                case "sltu":
+                    return Convert.ToUInt32(num1) < Convert.ToUInt32(num2) ? 1 : 0;
+                case "xor":
+                    return num1 ^ num2;
+                case "srl":
+                    return num1 >> num2;//??
+                case "sra":
+                    return num1 >> num2;//??
+                case "or":
+                    return num1 | num2;
+                case "and":
+                    return num1 & num2;
+                default:
+                    throw new SimulatorException { ErrorMessage = $"'unknown '{commandName}' command" };
             }
         }
     }
