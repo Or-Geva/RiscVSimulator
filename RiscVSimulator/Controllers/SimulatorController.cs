@@ -58,6 +58,9 @@ namespace RiscVSimulator.Controllers
                                 labelTable[labelTable.Keys.Last()] = new Lable { Address = Healper.GetAddress(res, memorySection) };
                                 newLabel = false;
                             }
+                            if (req.Program[cursor] != ' ')
+                                throw new SimulatorException { ErrorMessage = $"Missing space after Directive" };
+                            cursor++;//skip space 
                             var numbers = Healper.GetListOfNumber(req.Program, ref cursor);
                             foreach (var number in numbers)
                             {
@@ -85,10 +88,10 @@ namespace RiscVSimulator.Controllers
                     }
                     else
                     {
-                        commandInBinarryFormat = ParseCommandWithNoImm(req.Program, ref cursor,res.Register);
+                        commandInBinarryFormat = ParseCommandWithNoImm(req.Program, ref cursor,res.Register, res.Memory);
                         if (commandInBinarryFormat == 0)
                         {
-                            commandInBinarryFormat = ParseCommandWithImm(req.Program, ref cursor, out string optionalLabel,out string command,res.Register);
+                            commandInBinarryFormat = ParseCommandWithImm(req.Program, ref cursor, out string optionalLabel,out string command,res.Register,res.Memory);
                             if(optionalLabel != null)
                                 uncompleteParse.Add(Healper.GetAddress(res, memorySection), (optionalLabel, command,i));
                         }
@@ -243,12 +246,13 @@ namespace RiscVSimulator.Controllers
                 }
         }
 
-        private int ParseCommandWithNoImm(string reqProgram, ref int cursor, Register[] resRegister)
+        private int ParseCommandWithNoImm(string reqProgram, ref int cursor, Register[] resRegister,
+            Dictionary<int, byte> resMemory)
         {
             var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
             string ins = reqProgram.Substring(cursor, index - cursor).ToLower();
             int result;
-
+            cursor = index + 1;
             switch (ins)
             {
                 case "add":
@@ -261,17 +265,37 @@ namespace RiscVSimulator.Controllers
                 case "sra":
                 case "or":
                 case "and":
-                    cursor = index + 1;
                     result = Instructions.RInstruction(reqProgram, ref cursor, resRegister, ins);
                     break;
+                case "lb":
+                case "lh":
+                case "lw":
+                case "lbu":
+                case "lhu":
+                    result = Instructions.LoadIInstruction(reqProgram, ref cursor, resRegister, ins, resMemory);
+                    break;
+                case "sb":
+                case "sh":
+                case "sw":
+                    result = Instructions.StoreInstruction(reqProgram, ref cursor, resRegister, ins, resMemory);
+                    break;
+                case "beq":
+                case "bne":
+                case "blt":
+                case "bge":
+                case "bltu":
+                case "bgeu":
+                    result = Instructions.BInstruction(reqProgram, ref cursor, resRegister, ins, resMemory);
+                    break;
                 default:
+                    cursor -= index + 1;
                     return 0;
             }            
             return result;
         }
 
         private int ParseCommandWithImm(string reqProgram, ref int cursor, out string label, out string command,
-            Register[] resRegister)
+            Register[] resRegister, Dictionary<int, byte> resMemory)
         {
             var index = Healper.FindNextEndingWord(reqProgram, ref cursor);
             string ins = reqProgram.Substring(cursor, index - cursor);
@@ -281,8 +305,20 @@ namespace RiscVSimulator.Controllers
             switch (ins)
             {
                 case "addi":
+                case "slli":
+                case "slti":
+                case "sltiu":
+                case "xori":
+                case "srli":
+                case "srai":
+                case "ori":
+                case "andi":
+                case "jalr":
                     command = ins;
-                    return Instructions.AddiInstruction(reqProgram, ref cursor,out label, resRegister);
+                    return Instructions.IInstruction(reqProgram, ref cursor,out label, resRegister,ins, resMemory);
+                case "lui":
+                    command = ins;
+                    return Instructions.UInstruction(reqProgram, ref cursor, out label, resRegister, ins, resMemory);
                 default:
                     throw new SimulatorException { ErrorMessage = $"'{ins}' is invalid instruction" };
             }
