@@ -9,134 +9,64 @@ namespace RiscVSimulator.Utils
 {
     public static class Healper
     {
-        public static int FindNextLine(string content, ref int cursor)
+        public static List<string> GetArgs(string[][] programTextArray, ref int i, ref int j, int numberToGet = 3)
         {
-            return content.IndexOf("\n", cursor);
-        }
-
-        public static int FindNextEndingWord(string content, ref int cursor)
-        {
-            var a = content.IndexOf(" ", cursor, StringComparison.InvariantCultureIgnoreCase);
-            var b = content.IndexOf("\n", cursor, StringComparison.InvariantCultureIgnoreCase);
-            var c = content.IndexOf("\t", cursor, StringComparison.InvariantCultureIgnoreCase);
-            if (a == -1)
+            var result = new List<string>();
+            if(programTextArray[i][j][0] == ',')
+                throw new SimulatorException { ErrorMessage = "Missing first argument" };
+            bool continiueLoop = true;
+            while (result.Count != numberToGet && continiueLoop)
             {
-                if (b == -1)
+                if (programTextArray[i][j].Contains(','))
                 {
-                    if (c == -1)
-                        return content.Length;
-                    return c;
+                    result.AddRange(programTextArray[i][j].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
                 }
                 else
                 {
-                    if (c == -1)
-                        return b;
-                    return Math.Min(c, b);
+                    result.Add(programTextArray[i][j]);
                 }
-            }
-            else
-            {
-                if (b == -1)
+                if (programTextArray[i].Length > ++j == false)
                 {
-                    if (c == -1)
-                        return a;
-                    return Math.Min(a, c);
-
-                }
-                else
-                {
-                    if (c == -1)
-                        return Math.Min(a, b);
-                    return Math.Min(Math.Min(a, b), c);
+                    if (programTextArray.Length > ++i == false)
+                        continiueLoop = false;
+                    else
+                        j = 0;
                 }
             }
-        }
 
-        public static int FindEndOfInstruction(string content, ref int cursor)
-        {
-            var end = content.IndexOf("\r", cursor, StringComparison.InvariantCultureIgnoreCase);
-            if (end != -1)
-                return end;
-            end = content.IndexOf("#", cursor, StringComparison.InvariantCultureIgnoreCase);
-            if (end != -1)
-                return end;
-            end = content.IndexOf("\n", cursor, StringComparison.InvariantCultureIgnoreCase);
-            if (end != -1)
-                return end;
-            return content.Length;
-        }
-
-        public static int FindNextArg(string content, ref int cursor)
-        {
-            return content.IndexOf(",", cursor);
-        }
-
-        public static void SkipBlank(string content, ref int cursor, ref int lineNumber)
-        {
-            while (content[cursor] == ' ' || content[cursor] == '\r' || content[cursor] == '\t' ||
-                   content[cursor] == '\n')
-            {
-                if (content[cursor] == '\n')
-                    lineNumber++;
-                cursor++;
-
-            }
-
-        }
-
-        public static List<string> GetArgs(string reqProgram, ref int cursor, int numberToGet = 3)
-        {
-            List<string> result = new List<string>();
-            int index;
-            for (int i = 1; i < numberToGet; i++)
-            {
-                index = FindNextArg(reqProgram, ref cursor);
-                if (index == -1)
-                    throw new SimulatorException {ErrorMessage = $"got only {i} args out of {numberToGet}"};
-                result.Add(reqProgram.Substring(cursor, index - cursor));
-                cursor = index + 1;
-            }
-
-            index = FindEndOfInstruction(reqProgram, ref cursor);
-            result.Add(reqProgram.Substring(cursor, index - cursor));
-            cursor = index;
+            if(result.Count != numberToGet)
+                throw new SimulatorException { ErrorMessage = "Missing argument" };
             return result;
         }
 
-        public static string GetDirective(string reqProgram, ref int cursor)
+        public static string GetDirective(string[][] programTextArray, ref int i, ref int j)
         {
-            cursor++;
-            var index = FindNextEndingWord(reqProgram, ref cursor);
-            var res = reqProgram.Substring(cursor, index - cursor);
-            cursor = index;
-            return res;
+            var result = programTextArray[i][j].Substring(1, programTextArray[i][j].Length-1);
+            return result;
         }
 
-        public static List<long> GetListOfNumber(string reqProgram, ref int cursor)
+        public static List<long> GetListOfNumber(string[][] programTextArray, ref int i, ref int j)
         {
-            var index = FindEndOfInstruction(reqProgram, ref cursor);
-
-            var text = reqProgram.Substring(cursor, index - cursor);
-            text = text.Replace(" ", "");
-            text = text.Replace("\t", "");
-            cursor = index; //dont add +1 we dont know if its the end
-            return text.Split(',').Select(x => long.Parse(x)).ToList();
-
+            return programTextArray[i][j].Split(',').Select(x => long.Parse(x)).ToList();
         }
 
-        public static bool IsLabel(string reqProgram, ref int cursor, out string label)
+        public static bool IsLabel(string[][] programTextArray, ref int i, ref int j, out string label)
         {
-            var index = FindNextEndingWord(reqProgram, ref cursor);
-            label = reqProgram.Substring(cursor, index - cursor);
-            if (label[label.Length - 1] == ':')
+            var temp = programTextArray[i][j].Length - 1;
+            if (programTextArray[i][j][temp] == ':')
             {
-                cursor = index + 1;
-                label = label.Substring(0, label.Length - 1);
+                label = programTextArray[i][j].Substring(0, programTextArray[i][j].Length - 1);
                 if (string.IsNullOrWhiteSpace(label))
                     throw new SimulatorException {ErrorMessage = $"Label cannot be empty"};
+                if (programTextArray[i].Length > ++j == false)
+                {
+                    i++;
+                    j = 0;
+                }
                 return true;
             }
 
+            label = null;
             return false;
 
         }
@@ -247,7 +177,7 @@ namespace RiscVSimulator.Utils
                 if (!int.TryParse(s.Substring(0, index1), out int result))
                     return false;
                 offset = result;
-                register = s.Substring(index1 + 1, index2 - index1);
+                register = s.Substring(index1 + 1, index2 - index1-1);
                 return true;
             }
 
@@ -278,38 +208,62 @@ namespace RiscVSimulator.Utils
             }
         }
 
-        public static List<string> ParseJalr(string reqProgram, ref int cursor)
+        public static List<string> ParseJalr(string[][] programTextArray, ref int i, ref int j)
         {
-            List<string> result = new List<string>();
-            int index;
+            var result = new List<string>();
+            if (programTextArray[i][j][0] == ',')
+                throw new SimulatorException { ErrorMessage = "Missing first argument" };
+            if (programTextArray[i][j].Contains(','))
+                {
+                    result.AddRange(programTextArray[i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                }
+                else
+                {
+                    if (programTextArray[i][j].Contains('('))
+                    {
+                        result.Add(programTextArray[i][j++]);
+                        result.Add("x1");
+                    }
+                    else
+                    {
+                    result.Add(programTextArray[i][j]);
+                    i++;
+                    j = 0;
+                    if(programTextArray[i][j].Length > 1)
+                        result.AddRange(programTextArray[i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                    else
+                        result.AddRange(programTextArray[++i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                }
+            }
+            return result;
+        }
 
-            index = FindNextArg(reqProgram, ref cursor);
-            if (index == -1)
-                throw new SimulatorException {ErrorMessage = $"missing args for jalr command"};
-            if (reqProgram.Substring(cursor, index - cursor)
-                .StartsWith("offset", StringComparison.InvariantCultureIgnoreCase))
+        public static string PrepareString(string[][] programTextArray, ref int i, ref int j)
+        {
+            if(programTextArray[i][j][0] != '\"' )
+                throw new SimulatorException { ErrorMessage = $"the string: '{programTextArray[i][j]}' missing a quote" };
+            var result = string.Empty;
+            result += programTextArray[i][j].Substring(1, programTextArray[i][j].Length - 1);
+            if (programTextArray[i][j].Last() == '\"')
+                return result.Substring(0, result.Length - 1) + '\0';
+            if (programTextArray[i].Length > ++j == false)
             {
-                result.Add("x1");
-            }
-            else
-            {
-                result.Add(reqProgram.Substring(cursor, index - cursor));
-                cursor = index + 1;
-            }
-
-            if (IsComandWithOffset(reqProgram.Substring(cursor, index - cursor), out string register,
-                out int offset))
-            {
-                result.Add(register);
-                result.Add(offset.ToString());
-            }
-            else
-            {
-                throw new SimulatorException {ErrorMessage = $"missing args for jalr command"};
+                if (programTextArray.Length > ++i == false)
+                    throw new SimulatorException { ErrorMessage = $"the string: '{programTextArray[i][j]}' missing ends of string" };
+                j = 0;
             }
 
-            index = FindEndOfInstruction(reqProgram, ref cursor);
-            cursor = index;
+            while (programTextArray[i][j][programTextArray[i][j].Length - 1] != '\"')
+            {
+                result += " " + programTextArray[i][j];
+                if (programTextArray[i].Length > ++j == false)
+                {
+                    if (programTextArray.Length > ++i == false)
+                        throw new SimulatorException { ErrorMessage = $"the string: '{programTextArray[i][j]}' missing ends of string" };
+                    j = 0;
+                }
+            }
+            result += " " + programTextArray[i][j].Substring(0, programTextArray[i][j].Length - 1) + '\0';
             return result;
         }
     }
