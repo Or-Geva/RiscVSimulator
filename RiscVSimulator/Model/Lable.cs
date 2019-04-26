@@ -7,7 +7,7 @@ namespace RiscVSimulator.Model
 {
     public class Lable
     {
-        public int Address { get; set; }
+        public uint Address { get; set; }
         public int i { get; set; }
         public int j { get; set; }
     }

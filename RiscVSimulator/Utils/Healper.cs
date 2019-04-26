@@ -12,19 +12,11 @@ namespace RiscVSimulator.Utils
         public static List<string> GetArgs(string[][] programTextArray, ref int i, ref int j, int numberToGet = 3)
         {
             var result = new List<string>();
-            if(programTextArray[i][j][0] == ',')
-                throw new SimulatorException { ErrorMessage = "Missing first argument" };
+            if (programTextArray[i][j][0] == ',')
+                throw new SimulatorException {ErrorMessage = "Missing first argument"};
             bool continiueLoop = true;
             while (result.Count != numberToGet && continiueLoop)
             {
-                if (programTextArray[i][j].Contains(','))
-                {
-                    result.AddRange(programTextArray[i][j].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
-                }
-                else
-                {
-                    result.Add(programTextArray[i][j]);
-                }
                 if (programTextArray[i].Length > ++j == false)
                 {
                     if (programTextArray.Length > ++i == false)
@@ -32,16 +24,27 @@ namespace RiscVSimulator.Utils
                     else
                         j = 0;
                 }
+
+                if (programTextArray[i][j].Contains(','))
+                {
+                    result.AddRange(
+                        programTextArray[i][j].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                }
+                else
+                {
+                    result.Add(programTextArray[i][j]);
+                }
+
             }
 
-            if(result.Count != numberToGet)
-                throw new SimulatorException { ErrorMessage = "Missing argument" };
+            if (result.Count != numberToGet)
+                throw new SimulatorException {ErrorMessage = "Missing argument"};
             return result;
         }
 
         public static string GetDirective(string[][] programTextArray, ref int i, ref int j)
         {
-            var result = programTextArray[i][j].Substring(1, programTextArray[i][j].Length-1);
+            var result = programTextArray[i][j].Substring(1, programTextArray[i][j].Length - 1);
             return result;
         }
 
@@ -63,6 +66,7 @@ namespace RiscVSimulator.Utils
                     i++;
                     j = 0;
                 }
+
                 return true;
             }
 
@@ -96,14 +100,14 @@ namespace RiscVSimulator.Utils
             }
         }
 
-        public static int GetAddress(RiscVProgramResult res, MemorySection memorySection)
+        public static uint GetAddress(RiscVProgramResult res, MemorySection memorySection)
         {
             switch (memorySection)
             {
                 case MemorySection.Text:
-                    return (int) memorySection + res.StackTextFreePosition;
+                    return 0x10000 + res.StackTextFreePosition;
                 case MemorySection.Static:
-                    return (int) memorySection + res.StackStaticDataFreePosition;
+                    return (uint)0x10000000 + res.StackStaticDataFreePosition;
                 default:
                     throw new SimulatorException
                         {ErrorMessage = $"'{memorySection}' cannot find fit section to return from f. GetAddress"};
@@ -177,15 +181,17 @@ namespace RiscVSimulator.Utils
                 if (!int.TryParse(s.Substring(0, index1), out int result))
                     return false;
                 offset = result;
-                register = s.Substring(index1 + 1, index2 - index1-1);
+                register = s.Substring(index1 + 1, index2 - index1 - 1);
                 return true;
             }
 
             return false;
         }
 
-        public static int CalculatLoadComand(int value, int offset, string commandName, Dictionary<int, byte> resMemory)
+        public static int CalculatLoadComand(uint value,uint offset, string commandName, Dictionary<uint, byte> resMemory)
         {
+            if (resMemory.ContainsKey((value + offset)) == false)
+                return 0;
             switch (commandName)
             {
                 case "lb":
@@ -212,36 +218,39 @@ namespace RiscVSimulator.Utils
         {
             var result = new List<string>();
             if (programTextArray[i][j][0] == ',')
-                throw new SimulatorException { ErrorMessage = "Missing first argument" };
+                throw new SimulatorException {ErrorMessage = "Missing first argument"};
             if (programTextArray[i][j].Contains(','))
+            {
+                result.AddRange(programTextArray[i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+            }
+            else
+            {
+                if (programTextArray[i][j].Contains('('))
                 {
-                    result.AddRange(programTextArray[i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                    result.Add(programTextArray[i][j++]);
+                    result.Add("x1");
                 }
                 else
                 {
-                    if (programTextArray[i][j].Contains('('))
-                    {
-                        result.Add(programTextArray[i][j++]);
-                        result.Add("x1");
-                    }
-                    else
-                    {
                     result.Add(programTextArray[i][j]);
                     i++;
                     j = 0;
-                    if(programTextArray[i][j].Length > 1)
-                        result.AddRange(programTextArray[i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                    if (programTextArray[i][j].Length > 1)
+                        result.AddRange(programTextArray[i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s))
+                            .ToList());
                     else
-                        result.AddRange(programTextArray[++i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                        result.AddRange(programTextArray[++i][j++].Split(',').Where(s => !string.IsNullOrWhiteSpace(s))
+                            .ToList());
                 }
             }
+
             return result;
         }
 
         public static string PrepareString(string[][] programTextArray, ref int i, ref int j)
         {
-            if(programTextArray[i][j][0] != '\"' )
-                throw new SimulatorException { ErrorMessage = $"the string: '{programTextArray[i][j]}' missing a quote" };
+            if (programTextArray[i][j][0] != '\"')
+                throw new SimulatorException {ErrorMessage = $"the string: '{programTextArray[i][j]}' missing a quote"};
             var result = string.Empty;
             result += programTextArray[i][j].Substring(1, programTextArray[i][j].Length - 1);
             if (programTextArray[i][j].Last() == '\"')
@@ -249,7 +258,8 @@ namespace RiscVSimulator.Utils
             if (programTextArray[i].Length > ++j == false)
             {
                 if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"the string: '{programTextArray[i][j]}' missing ends of string" };
+                    throw new SimulatorException
+                        {ErrorMessage = $"the string: '{programTextArray[i][j]}' missing ends of string"};
                 j = 0;
             }
 
@@ -259,10 +269,12 @@ namespace RiscVSimulator.Utils
                 if (programTextArray[i].Length > ++j == false)
                 {
                     if (programTextArray.Length > ++i == false)
-                        throw new SimulatorException { ErrorMessage = $"the string: '{programTextArray[i][j]}' missing ends of string" };
+                        throw new SimulatorException
+                            {ErrorMessage = $"the string: '{programTextArray[i][j]}' missing ends of string"};
                     j = 0;
                 }
             }
+
             result += " " + programTextArray[i][j].Substring(0, programTextArray[i][j].Length - 1) + '\0';
             return result;
         }

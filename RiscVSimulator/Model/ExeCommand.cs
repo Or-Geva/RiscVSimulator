@@ -9,6 +9,7 @@ namespace RiscVSimulator.Model
     {
         public string Instraction { get; set; }
         public List<string> Args { get; set; }
+        public int Line { get; set; }
 
         public ExeCommand()
         {

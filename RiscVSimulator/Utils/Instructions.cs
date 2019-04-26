@@ -14,6 +14,8 @@ namespace RiscVSimulator.Utils
         private static Dictionary<string, int> SInstructionOpcode;
         private static Dictionary<string, int> BInstructionOpcode;
         private static Dictionary<string, int> UInstructionOpcode;
+        private static Dictionary<string, int> JInstructionOpcode;
+        private static Dictionary<string, int> EInstructionOpcode;
 
 
         static Instructions()
@@ -53,26 +55,28 @@ namespace RiscVSimulator.Utils
             };
             UInstructionOpcode = new Dictionary<string, int>
             {
-                {"lui", 55},{"auipc", 23}
+                {"lui", 55}, {"auipc", 23}
+            };
+            JInstructionOpcode = new Dictionary<string, int>
+            {
+                {"j", 111}, {"jal", 111}
+            };
+            EInstructionOpcode = new Dictionary<string, int>
+            {
+                {"ecall", 115}, {"ebreak", 1048691}
             };
         }
 
         public static int RInstruction(string[][] programTextArray, ref int i, ref int j,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
-
             int instructionLayout = RInstructionOpcode[commandName];
-            var args = Healper.GetArgs(programTextArray, ref i,ref j);
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand{Args = args,Instraction = commandName};
-            if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]) || !registersOpcode.ContainsKey(args[2]))
-                throw new SimulatorException { ErrorMessage = $"'unknown register" };
+            var args = Healper.GetArgs(programTextArray, ref i, ref j);
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
+            if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]) ||
+                !registersOpcode.ContainsKey(args[2]))
+                throw new SimulatorException {ErrorMessage = $"'unknown register"};
 
             instructionLayout = instructionLayout | registersOpcode[args[0]] << 7 |
                                 registersOpcode[args[1]] << 15 | registersOpcode[args[2]] << 20;
@@ -82,37 +86,32 @@ namespace RiscVSimulator.Utils
 
         public static void ExeRInstruction(RiscVProgramResult res, string exeCommand, List<string> args)
         {
-            res.Register[registersOpcode[args[0]]].Value = Healper.CalculatRComand(
-                res.Register[registersOpcode[args[1]]].Value, res.Register[registersOpcode[args[2]]].Value, exeCommand);
+            if (registersOpcode[args[0]] != 0)
+                res.Register[registersOpcode[args[0]]].Value = Healper.CalculatRComand(
+                    res.Register[registersOpcode[args[1]]].Value, res.Register[registersOpcode[args[2]]].Value,
+                    exeCommand);
         }
 
         public static int BInstruction(string[][] programTextArray, ref int i, ref int j,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
-
             int instructionLayout = BInstructionOpcode[commandName];
             var args = Healper.GetArgs(programTextArray, ref i, ref j);
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
 
             if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]))
-                throw new SimulatorException { ErrorMessage = $"'unknown register" };
+                throw new SimulatorException {ErrorMessage = $"'unknown register"};
             instructionLayout |= registersOpcode[args[0]] << 15 | registersOpcode[args[1]] << 20;
             if (int.TryParse(args[2], out int number))
                 instructionLayout = instructionLayout | ((number << 25) >> 5);
             else
-                throw new SimulatorException { ErrorMessage = $"'unknown shamit" };
+                throw new SimulatorException {ErrorMessage = $"'unknown shamit"};
 
             var bits1to4 = number & Convert.ToInt32("1111", 2);
             var bits5to11 = (number & Convert.ToInt32("1111110000", 2) >> 4);
-            var bit11 = (number & Convert.ToInt32("10000000000", 2) >>10);
-            var bit12 = (number & Convert.ToInt32("100000000000", 2) >>11);
+            var bit11 = (number & Convert.ToInt32("10000000000", 2) >> 10);
+            var bit12 = (number & Convert.ToInt32("100000000000", 2) >> 11);
             instructionLayout |= (bits1to4 << 8) | (bit11 << 7) | (bits5to11 << 25) | (bit12 << 30);
             return instructionLayout;
         }
@@ -161,51 +160,37 @@ namespace RiscVSimulator.Utils
         }
 
         public static int ShamtIInstruction(string[][] programTextArray, ref int i, ref int j,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
             int instructionLayout = IInstructionOpcode[commandName];
-
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
-
             var args = Healper.GetArgs(programTextArray, ref i, ref j);
 
             if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]))
-                throw new SimulatorException { ErrorMessage = $"'unknown register" };
+                throw new SimulatorException {ErrorMessage = $"'unknown register"};
             instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[args[1]] << 15;
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
 
             if (int.TryParse(args[2], out int number))
                 instructionLayout = instructionLayout | ((number << 25) >> 5);
             else
                 throw new SimulatorException {ErrorMessage = $"'unknown shamit"};
-            
+
 
             return instructionLayout;
         }
 
         public static void ExeShamtIInstruction(RiscVProgramResult res, string exeCommand, List<string> args)
         {
-        res.Register[registersOpcode[args[0]]].Value =
-         Healper.CalculatIComand(res.Register[registersOpcode[args[1]]].Value, int.Parse(args[2]) & 31,
-             exeCommand);
+            res.Register[registersOpcode[args[0]]].Value =
+                Healper.CalculatIComand(res.Register[registersOpcode[args[1]]].Value, int.Parse(args[2]) & 31,
+                    exeCommand);
         }
 
         public static int IInstruction(string[][] programTextArray, ref int i, ref int j, out string label,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
 
             int instructionLayout = IInstructionOpcode[commandName];
 
@@ -213,14 +198,15 @@ namespace RiscVSimulator.Utils
             {
                 label = null;
                 var args = Healper.ParseJalr(programTextArray, ref i, ref j);
-                commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+                commandsToExe[commandsToExe.Last().Key] = new ExeCommand
+                    {Args = args, Instraction = commandName, Line = i};
 
                 if (!Healper.IsComandWithOffset(args[1], out string register, out int offset))
                     throw new SimulatorException {ErrorMessage = $"'unknown load format command"};
                 if (!registersOpcode.ContainsKey(register))
                     throw new SimulatorException {ErrorMessage = $"'unknown '{register}' register for load command"};
                 instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[register] << 15 | offset << 20;
- 
+
                 return instructionLayout;
             }
             else
@@ -229,11 +215,12 @@ namespace RiscVSimulator.Utils
                 if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]))
                     throw new SimulatorException {ErrorMessage = $"'unknown register"};
                 instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[args[1]] << 15;
-                commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+                commandsToExe[commandsToExe.Last().Key] = new ExeCommand
+                    {Args = args, Instraction = commandName, Line = i};
 
                 if (int.TryParse(args[2], out int number))
                 {
-                        instructionLayout = instructionLayout | number << 20;
+                    instructionLayout = instructionLayout | number << 20;
                     label = null;
                 }
                 else
@@ -249,38 +236,34 @@ namespace RiscVSimulator.Utils
         {
             if (exeCommand == "jalr")
             {
-               res.Register[registersOpcode[args[0]]].Value = res.Register[registersOpcode["pc"]].Value;
-                res.Register[registersOpcode["pc"]].Value = res.Register[registersOpcode[args[1]]].Value + Convert.ToInt32(args[1]); 
+                res.Register[registersOpcode[args[0]]].Value = res.Register[registersOpcode["pc"]].Value;
+                res.Register[registersOpcode["pc"]].Value =
+                    res.Register[registersOpcode[args[1]]].Value + Convert.ToInt32(args[1]);
             }
             else
             {
-                res.Register[registersOpcode[args[0]]].Value =
-                    Healper.CalculatIComand(res.Register[registersOpcode[args[1]]].Value, int.Parse(args[2]) & 4095,
-                        exeCommand);
+                if (registersOpcode[args[0]] != 0)
+                    res.Register[registersOpcode[args[0]]].Value =
+                        Healper.CalculatIComand(res.Register[registersOpcode[args[1]]].Value, int.Parse(args[2]) & 4095,
+                            exeCommand);
             }
         }
 
         public static int LoadIInstruction(string[][] programTextArray, ref int i, ref int j,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
             int instructionLayout = IInstructionOpcode[commandName];
             var args = Healper.GetArgs(programTextArray, ref i, ref j, 2);
-           
+
 
             if (!Healper.IsComandWithOffset(args[1], out string register, out int offset))
                 throw new SimulatorException {ErrorMessage = $"'unknown load format command"};
             if (!registersOpcode.ContainsKey(register))
                 throw new SimulatorException {ErrorMessage = $"'unknown '{register}' register for load command"};
 
-            args.AddRange(new List<string> { register, offset.ToString() });
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand
+                {Args = new List<string> {args[0], register, offset.ToString()}, Instraction = commandName, Line = i};
             instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[register] << 15 | offset << 20;
             return instructionLayout;
         }
@@ -288,92 +271,77 @@ namespace RiscVSimulator.Utils
         public static void ExeLoadInstruction(RiscVProgramResult res, string exeCommand, List<string> args)
         {
             res.Register[registersOpcode[args[0]]].Value =
-                Healper.CalculatLoadComand(res.Register[registersOpcode[args[1]]].Value, Int32.Parse(args[2]),
+                Healper.CalculatLoadComand((uint)res.Register[registersOpcode[args[1]]].Value, uint.Parse(args[2]),
                     exeCommand,
                     res.Memory);
         }
 
         public static int StoreInstruction(string[][] programTextArray, ref int i, ref int j,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
             int instructionLayout = SInstructionOpcode[commandName];
             var args = Healper.GetArgs(programTextArray, ref i, ref j, 2);
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
 
             if (!Healper.IsComandWithOffset(args[1], out string register, out int offset))
                 throw new SimulatorException {ErrorMessage = $"'unknown store format command"};
             if (!registersOpcode.ContainsKey(register))
                 throw new SimulatorException {ErrorMessage = $"'unknown '{register}' register for load command"};
-
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand
+                {Args = new List<string> {args[0], register, offset.ToString()}, Instraction = commandName, Line = i};
             instructionLayout |= registersOpcode[args[0]] << 20 | registersOpcode[register] << 15;
             instructionLayout |= (offset & Convert.ToInt32("111111100000", 2) << 20) |
                                  (offset & Convert.ToInt32("11111", 2) << 7);
-  
+
 
             return instructionLayout;
         }
 
         public static void ExeStoreInstruction(RiscVProgramResult res, string exeCommand, List<string> args)
         {
-            res.Register[registersOpcode[args[0]]].Value =
-                Healper.CalculatLoadComand(res.Register[registersOpcode[args[1]]].Value, Int32.Parse(args[2]),
-                    exeCommand,
-                    res.Memory);
-             var registerValue = res.Register[registersOpcode[args[0]]].Value;
-             switch (exeCommand)
-             {
-                 case "sb":
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2])] =
-                         (byte) (registerValue & Convert.ToInt32("11111111", 2));
-                     break;
-                 case "sh":
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2])] =
-                         (byte) (registerValue & Convert.ToInt32("11111111", 2));
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 1] =
-                         (byte) ((registerValue >> 8) & Convert.ToInt32("11111111", 2));
-                     break;
-                 default:
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2])] =
-                         (byte) (registerValue & Convert.ToInt32("11111111", 2));
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 1] =
-                         (byte) ((registerValue >> 8) & Convert.ToInt32("11111111", 2));
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 2] =
-                         (byte) ((registerValue >> 16) & Convert.ToInt32("11111111", 2));
-                     res.Memory[res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 3] =
-                         (byte) (registerValue >> 24);
-                     break;
-             }
+            var registerValue = res.Register[registersOpcode[args[0]]].Value;
+            switch (exeCommand)
+            {
+                case "sb":
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]))] =
+                        (byte) (registerValue & Convert.ToInt32("11111111", 2));
+                    break;
+                case "sh":
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]))] =
+                        (byte) (registerValue & Convert.ToInt32("11111111", 2));
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 1)] =
+                        (byte) ((registerValue >> 8) & Convert.ToInt32("11111111", 2));
+                    break;
+                default:
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]))] =
+                        (byte) (registerValue & Convert.ToInt32("11111111", 2));
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 1)] =
+                        (byte) ((registerValue >> 8) & Convert.ToInt32("11111111", 2));
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 2)] =
+                        (byte) ((registerValue >> 16) & Convert.ToInt32("11111111", 2));
+                    res.Memory[(uint)(res.Register[registersOpcode[args[1]]].Value + Int32.Parse(args[2]) + 3)] =
+                        (byte) (registerValue >> 24);
+                    break;
+            }
         }
 
         public static int JInstruction(string[][] programTextArray, ref int i, ref int j,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
-            int instructionLayout = UInstructionOpcode[commandName];
+            int instructionLayout = JInstructionOpcode[commandName];
             var args = Healper.GetArgs(programTextArray, ref i, ref j, commandName == "jal" ? 2 : 1);
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
             if (int.TryParse(args[commandName == "jal" ? 1 : 0], out int number))
             {
-                instructionLayout |=  (commandName == "jal" ? registersOpcode[args[0]] << 7 : 0);
+                instructionLayout |= (commandName == "jal" ? registersOpcode[args[0]] << 7 : 0);
                 commandsToExe[commandsToExe.Last().Key].Args[commandName == "jal" ? 1 : 0] = number.ToString();
             }
             else
             {
-                throw new SimulatorException { ErrorMessage = $"'bad offset for j command" };
+                throw new SimulatorException {ErrorMessage = $"'bad offset for j command"};
             }
+
             var bits1to10 = number & Convert.ToInt32("1111111111", 2);
             var bits12to19 = (number & Convert.ToInt32("1111111100000000000", 2) >> 11);
             var bit11 = (number & Convert.ToInt32("10000000000", 2) >> 10);
@@ -388,27 +356,23 @@ namespace RiscVSimulator.Utils
             {
                 case "jal":
                     res.Register[registersOpcode[args[0]]].Value = res.Register[registersOpcode["pc"]].Value + 4;
-                    res.Register[registersOpcode["pc"]].Value += Int32.Parse(args[1]) & Convert.ToInt32("11111111111111111111", 2);
+                    res.Register[registersOpcode["pc"]].Value +=
+                        Int32.Parse(args[1]) & Convert.ToInt32("11111111111111111111", 2);
                     break;
                 case "j":
-                    res.Register[registersOpcode["pc"]].Value += Int32.Parse(args[1]) & Convert.ToInt32("11111111111111111111", 2);
+                    res.Register[registersOpcode["pc"]].Value +=
+                        Int32.Parse(args[0]) & Convert.ToInt32("11111111111111111111", 2);
                     break;
             }
         }
 
         public static int UInstruction(string[][] programTextArray, ref int i, ref int j, out string label,
-            Dictionary<int, ExeCommand> commandsToExe)
+            Dictionary<uint, ExeCommand> commandsToExe)
         {
             var commandName = programTextArray[i][j];
-            if (programTextArray[i].Length > ++j == false)
-            {
-                if (programTextArray.Length > ++i == false)
-                    throw new SimulatorException { ErrorMessage = $"'incomplete command" };
-                j = 0;
-            }
             int instructionLayout = UInstructionOpcode[commandName];
             var args = Healper.GetArgs(programTextArray, ref i, ref j, 2);
-            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Args = args, Instraction = commandName };
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
 
             label = null;
             if (!registersOpcode.ContainsKey(args[0]))
@@ -428,15 +392,55 @@ namespace RiscVSimulator.Utils
 
         public static void ExeUInstruction(RiscVProgramResult res, string exeCommand, List<string> args)
         {
-              switch (exeCommand)
-             {
-                 case "auipc":
-                     res.Register[registersOpcode[args[0]]].Value = res.Register[registersOpcode["pc"]].Value + (Int32.Parse(args[1]) << 12);
-                     break;
-                 case "lui":
-                     res.Register[registersOpcode[args[0]]].Value = Int32.Parse(args[1]) << 12;
-                     break;
-             }
+            switch (exeCommand)
+            {
+                case "auipc":
+                    res.Register[registersOpcode[args[0]]].Value =
+                        res.Register[registersOpcode["pc"]].Value + (Int32.Parse(args[1]) << 12);
+                    break;
+                case "lui":
+                    res.Register[registersOpcode[args[0]]].Value = Int32.Parse(args[1]) << 12;
+                    break;
+            }
+        }
+
+        public static int EInstruction(string[][] programTextArray, ref int i, ref int j,
+            Dictionary<uint, ExeCommand> commandsToExe)
+        {
+            var commandName = programTextArray[i][j];
+            commandsToExe[commandsToExe.Last().Key] = new ExeCommand { Instraction = commandName, Line = i };
+
+            if (programTextArray[i].Length > 1)
+                throw new SimulatorException {ErrorMessage = $"command '{commandName}' can not take instructions"};
+
+            return EInstructionOpcode[commandName];
+        }
+
+        public static void ExeEInstruction(RiscVProgramResult res, string exeCommand, List<string> args, ref bool endProgram)
+        {
+            switch (exeCommand)
+            {
+                case "ebreak":
+                    endProgram = true;
+                    break;
+                case "ecall":
+                    switch (res.Register[10].Value)
+                    {
+                        case 1:
+                            if(res.Register[11].Value < 0)
+                                throw new SimulatorException { ErrorMessage = $"ecall code 1 cannot get negative number as argument{res.Register[11].Value} " };
+
+                            res.StackDynamicDataFreePosition += (uint)res.Register[11].Value;
+                            break;
+                        case 2:
+                            res.Register[12].Value = new Random().Next(0, res.Register[11].Value);
+                            break;
+                        default:
+                            throw new SimulatorException { ErrorMessage = $"bad ecall argument  '{res.Register[10].Value}' " };
+
+                    }
+                    break;
+            }
         }
     }
 }
