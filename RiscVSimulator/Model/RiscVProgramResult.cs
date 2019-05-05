@@ -13,13 +13,17 @@ namespace RiscVSimulator.Model
         public uint StackDynamicDataFreePosition { get; set; }
         public Dictionary<uint, byte> Memory { get; set; }
         public int DebugLine { get; set; }
+        public List<GraphicBorder> GraphicBorder { get; set; }
+        public AlphanumericData alphanumericData { get; set; }
 
         public RiscVProgramResult(RiscVProgram req)
         {
+            alphanumericData = new AlphanumericData();
             if (req.Registers == null)
                 req.Registers = new List<Register>();
             Register = new Register[33];
             Memory = new Dictionary<uint, byte>();
+            GraphicBorder = new List<GraphicBorder>();
             Register[0] = new Register {Name = "zero/x0", Value = 0};
             Register[1] = new Register {Name = "ra/x1", Value = req.Registers[1].Value};
             Register[2] = new Register {Name = "sp/x2", Value = req.Registers[2].Value};
@@ -65,7 +69,19 @@ namespace RiscVSimulator.Model
                     Name = result.Register[i].Name,
                     Value = result.Register[i].Value
                 };
+            this.alphanumericData = alphanumericData;
             DebugLine = debugline;
+            GraphicBorder = result.GraphicBorder;
+            alphanumericData = result.alphanumericData;
+
+        }
+   
+        public RiscVProgramResult()
+        {
+            Register = new Register[33];
+            Memory = new Dictionary<uint, byte>();
+            GraphicBorder = new List<GraphicBorder>();
+            alphanumericData = new AlphanumericData();
         }
     }
 

@@ -416,7 +416,8 @@ namespace RiscVSimulator.Utils
             return EInstructionOpcode[commandName];
         }
 
-        public static void ExeEInstruction(RiscVProgramResult res, string exeCommand, List<string> args, ref bool endProgram)
+        public static void ExeEInstruction(RiscVProgramResult res, string exeCommand, List<string> args,
+            ref bool endProgram, Dictionary<string, uint> stringTable)
         {
             switch (exeCommand)
             {
@@ -435,12 +436,157 @@ namespace RiscVSimulator.Utils
                         case 2:
                             res.Register[12].Value = new Random().Next(0, res.Register[11].Value);
                             break;
+                        case 3:
+                            res.alphanumericData.Output = new List<string>();
+                            break;
+                        case 4:
+                            if(res.Register[11].Value < 0 || res.Register[11].Value > 32)
+                                throw new SimulatorException { ErrorMessage = $"ecall code 4 can only get numbers 0~32 at register a1" };
+                            res.alphanumericData.Output.Add($"The number in register '{res.Register[res.Register[11].Value].Name}' : {res.Register[res.Register[11].Value].Value}");
+                            break;
+                        case 5:
+                            res.alphanumericData.Output.Add($"The ASCI code in register '{res.Register[res.Register[11].Value].Name}' is {Convert.ToChar(res.Register[res.Register[11].Value].Value)}");
+                            break;
+                        case 6:
+                            res.alphanumericData.Output.Add($"The string locate at address '{res.Register[11].Value}' is {GetString(res.Register[11].Value,res.Memory)}");
+                            break;
+                        case 7:
+                            if (string.IsNullOrEmpty(res.alphanumericData.Input) )
+                            {
+                                res.alphanumericData.Output.Add($"Please Enter Your 'string' you want to search");
+                                res.alphanumericData.Line = res.Register[10].Value;
+                                endProgram = true;
+                                break;
+                            }
+
+                            res.alphanumericData.Output.Add(GetStringAddressMemory(res.alphanumericData.Input,stringTable));
+                            res.alphanumericData.Line = -1;
+                            break;
+                        case 8:
+                            if (string.IsNullOrEmpty(res.alphanumericData.Input))
+                            {
+                                res.alphanumericData.Output.Add($"Please enter a number to store");
+                                res.alphanumericData.Line = res.Register[10].Value;
+                                endProgram = true;
+                                break;
+                            }
+
+                            res.Register[11].Value = int.Parse(res.alphanumericData.Input);
+                            break;
+                        case 9:
+                            res.Register[11].Value = res.alphanumericData.LastChar;
+                            break;
+                        case 10:
+                            res.GraphicBorder.Add(CreatePoint(res.Register[11].Value, res.Register[12].Value, res.Register[13].Value));
+                            break;
+                        case 11:
+                            res.Register[13].Value = GetColor(res.Register[11].Value, res.Register[12].Value, res.GraphicBorder);
+                            break;
+                        case 12:
+                            for (int i = 0; i < 21; i++)
+                            {
+                                for (int j = 0; j < 10; j++)
+                                {
+                                    res.GraphicBorder.Add(CreatePoint(i, j, res.Register[11].Value));
+                                }
+                            }
+                            break;
+                        case 13:
+                                for (int j = 0; j < 10; j++)
+                                {
+                                    res.GraphicBorder.Add(CreatePoint(4, j, res.Register[11].Value));
+                                }
+                            break;
+                        case 14:
+                                res.GraphicBorder.Add(CreatePoint(2, 10, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(3, 9, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(3, 11, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(4, 8, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(4, 12, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(5, 7, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(5, 13, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(6, 7, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(6, 13, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(7, 8, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(7, 12, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(8, 9, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(8, 11, res.Register[11].Value));
+                                res.GraphicBorder.Add(CreatePoint(9, 10, res.Register[11].Value));
+
+
+                            break;
                         default:
                             throw new SimulatorException { ErrorMessage = $"bad ecall argument  '{res.Register[10].Value}' " };
 
                     }
                     break;
             }
+        }
+
+        private static int GetColor(int x, int y, List<GraphicBorder> resGraphicBorder)
+        {
+            var ColorNumber = resGraphicBorder.FirstOrDefault(setOfPoints => setOfPoints.Points.Any(point => point.X == x && point.Y == y)).Color;
+
+            switch (ColorNumber)
+            {
+                case "#ff0000":
+                    return 1;//red
+                case "#0000ff":
+                    return 2;//blue
+                case "#009900":
+                   return 3;//green 
+                case "#444":
+                    return 4;//dark
+                default:
+                    throw new SimulatorException { ErrorMessage = $"color number{ColorNumber} is not in rang of 1-3 " };
+            }
+        }
+
+        private static string GetStringAddressMemory(string str,Dictionary<string, uint> stringTable)
+        {
+                return stringTable.ContainsKey(str) ? stringTable[str].ToString() : "N/A" ;
+        }
+
+        private static string GetString(int value, Dictionary<uint, byte> resMemory)
+        {
+            string result = string.Empty;
+            while (resMemory[(uint)value] != 0)
+            {
+                result += Convert.ToChar(resMemory[(uint) value]);
+                value++;
+            }
+
+            return result;
+        }
+
+        private static GraphicBorder CreatePoint(int y, int x, int ColorNumber)
+        {
+            var colorHash = string.Empty;
+            switch (ColorNumber)
+            {
+                case 1:
+                    colorHash = "#ff0000";//red
+                    break;
+                case 2:
+                    colorHash = "#0000ff";//blue
+                    break;
+                case 3:
+                    colorHash = "#009900";//green 
+                    break;
+                case 4:
+                    colorHash = "#444";//dark
+                    break;
+                default:
+                    throw new SimulatorException { ErrorMessage = $"color number{ColorNumber} is not in rang of 1-3 " };
+            }
+
+            var Points = new List<Point>();
+            Points.Add(new Point{X = x,Y=y});
+            return new GraphicBorder
+            {
+                Color = colorHash,
+                Points = Points
+            };
         }
     }
 }

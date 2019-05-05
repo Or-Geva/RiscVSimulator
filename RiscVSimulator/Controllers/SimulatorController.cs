@@ -36,6 +36,7 @@ namespace RiscVSimulator.Controllers
             Dictionary<uint, ExeCommand> commandsToExe = new Dictionary<uint, ExeCommand>();
             RiscVProgramResult res = new RiscVProgramResult(req);
             List<RiscVProgramResult> debugRes = new List<RiscVProgramResult>();
+            Dictionary<string,uint> stringTable = new Dictionary<string, uint>();//only for ecall 7 use
             var TextArray = req.Program.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
             var programTextArray = new string[TextArray.Length][];
             for (int i = 0; i < TextArray.Length; i++)
@@ -86,6 +87,7 @@ namespace RiscVSimulator.Controllers
                             if (directive == "string")
                             {
                                 var items = Healper.PrepareString(programTextArray, ref i, ref j);
+                                stringTable.Add(items.Substring(0,items.Length-1), Healper.GetAddress(res, memorySection));
                                 foreach (var item in items)
                                 {
                                     var longBytes = BitConverter.GetBytes(item);
@@ -169,7 +171,7 @@ namespace RiscVSimulator.Controllers
             try
             {
                 DoSecondParse(res, debugRes, req.DebugMode, uncompleteParse, labelTable, commandsToExe);
-                ExeProgram(res, debugRes, req.DebugMode, commandsToExe, req.DebugMode);
+                ExeProgram(res, debugRes, commandsToExe, req.DebugMode, stringTable);
             }
             catch (ErrorInResult e)
             {
@@ -183,11 +185,20 @@ namespace RiscVSimulator.Controllers
 
             if (req.DebugMode)
                 return Ok(debugRes);
-            return Ok(res);
+            if (res.alphanumericData.Line == -1)
+                return Ok(res);
+            return Ok(new ContinueProgramResult
+            {
+                res = res,
+                commandsToExe = commandsToExe,
+                debugRes = debugRes,
+                DebugMode = req.DebugMode,
+                stringTable = stringTable
+            });
         }
 
-        private void ExeProgram(RiscVProgramResult res, List<RiscVProgramResult> debugRes, bool reqDebugMode,
-            Dictionary<uint, ExeCommand> commandsToExe, bool DebugMode)
+        private void ExeProgram(RiscVProgramResult res, List<RiscVProgramResult> debugRes,
+            Dictionary<uint, ExeCommand> commandsToExe, bool DebugMode, Dictionary<string, uint> stringTable)
         {
             var line = 0;
             string command = string.Empty;
@@ -260,7 +271,7 @@ namespace RiscVSimulator.Controllers
                         break;
                     case "ecall":
                     case "ebreak":
-                        Instructions.ExeEInstruction(res, command, args,ref finishExe);
+                        Instructions.ExeEInstruction(res, command, args,ref finishExe, stringTable);
                         break;
                     default:
                         throw new SimulatorException
@@ -435,6 +446,44 @@ namespace RiscVSimulator.Controllers
                 }
             }
 
+        }
+
+        [HttpPost("ProgramToContinue")]
+        public async Task<ActionResult> ProgramToContinue([FromBody] ContinueProgramResult req)
+        {
+            req.res.alphanumericData.Input = req.res.alphanumericData.Input.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s)).ToArray().Last();
+           var lastChar = req.res.alphanumericData.Input.LastOrDefault();
+           if (string.IsNullOrEmpty(lastChar.ToString()))
+               req.res.alphanumericData.LastChar = -1;
+           else
+               req.res.alphanumericData.LastChar = lastChar;
+
+            req.res.alphanumericData.Output.Add(req.res.alphanumericData.Input);
+            try
+            {
+                req.res.Register[32].Value -= 4; 
+                ExeProgram(req.res, req.debugRes, req.commandsToExe, req.DebugMode,req.stringTable);
+            }
+            catch (ErrorInResult e)
+            {
+                return BadRequest(new ErrorInResult { Line = e.Line, Message = e.Message });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ErrorInResult { Message = "Internal Error" });
+            }
+
+            if (req.DebugMode)
+                return Ok(req.debugRes);
+            if (req.res.alphanumericData.Line == -1)
+                return Ok(req.res);
+            return Ok(new ContinueProgramResult
+            {
+                res = req.res,
+                commandsToExe = req.commandsToExe,
+                debugRes = req.debugRes,
+                DebugMode = req.DebugMode
+            });
         }
 
         private int ParseCommandWithNoImm(string[][] programTextArray, ref int i, ref int j,
