@@ -76,7 +76,7 @@ namespace RiscVSimulator.Utils
             commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
             if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]) ||
                 !registersOpcode.ContainsKey(args[2]))
-                throw new SimulatorException {ErrorMessage = $"'unknown register"};
+                throw new SimulatorException {ErrorMessage = $"unknown register"};
 
             instructionLayout = instructionLayout | registersOpcode[args[0]] << 7 |
                                 registersOpcode[args[1]] << 15 | registersOpcode[args[2]] << 20;
@@ -101,12 +101,12 @@ namespace RiscVSimulator.Utils
             commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
 
             if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]))
-                throw new SimulatorException {ErrorMessage = $"'unknown register"};
+                throw new SimulatorException {ErrorMessage = $"unknown register"};
             instructionLayout |= registersOpcode[args[0]] << 15 | registersOpcode[args[1]] << 20;
             if (int.TryParse(args[2], out int number))
                 instructionLayout = instructionLayout | ((number << 25) >> 5);
             else
-                throw new SimulatorException {ErrorMessage = $"'unknown shamit"};
+                throw new SimulatorException {ErrorMessage = $"unknown shamit"};
 
             var bits1to4 = number & Convert.ToInt32("1111", 2);
             var bits5to11 = (number & Convert.ToInt32("1111110000", 2) >> 4);
@@ -155,7 +155,7 @@ namespace RiscVSimulator.Utils
             }
             else
             {
-                throw new SimulatorException {ErrorMessage = $"'unknown offset in B"};
+                throw new SimulatorException {ErrorMessage = $"unknown offset in B"};
             }
         }
 
@@ -167,14 +167,14 @@ namespace RiscVSimulator.Utils
             var args = Healper.GetArgs(programTextArray, ref i, ref j);
 
             if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]))
-                throw new SimulatorException {ErrorMessage = $"'unknown register"};
+                throw new SimulatorException {ErrorMessage = $"unknown register"};
             instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[args[1]] << 15;
             commandsToExe[commandsToExe.Last().Key] = new ExeCommand {Args = args, Instraction = commandName, Line = i};
 
             if (int.TryParse(args[2], out int number))
                 instructionLayout = instructionLayout | ((number << 25) >> 5);
             else
-                throw new SimulatorException {ErrorMessage = $"'unknown shamit"};
+                throw new SimulatorException {ErrorMessage = $"unknown shamit"};
 
 
             return instructionLayout;
@@ -202,9 +202,9 @@ namespace RiscVSimulator.Utils
                     {Args = args, Instraction = commandName, Line = i};
 
                 if (!Healper.IsComandWithOffset(args[1], out string register, out int offset))
-                    throw new SimulatorException {ErrorMessage = $"'unknown load format command"};
+                    throw new SimulatorException {ErrorMessage = $"unknown load format command"};
                 if (!registersOpcode.ContainsKey(register))
-                    throw new SimulatorException {ErrorMessage = $"'unknown '{register}' register for load command"};
+                    throw new SimulatorException {ErrorMessage = $"unknown '{register}' register for load command"};
                 instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[register] << 15 | offset << 20;
 
                 return instructionLayout;
@@ -213,7 +213,7 @@ namespace RiscVSimulator.Utils
             {
                 var args = Healper.GetArgs(programTextArray, ref i, ref j);
                 if (!registersOpcode.ContainsKey(args[0]) || !registersOpcode.ContainsKey(args[1]))
-                    throw new SimulatorException {ErrorMessage = $"'unknown register"};
+                    throw new SimulatorException {ErrorMessage = $"unknown register"};
                 instructionLayout |= registersOpcode[args[0]] << 7 | registersOpcode[args[1]] << 15;
                 commandsToExe[commandsToExe.Last().Key] = new ExeCommand
                     {Args = args, Instraction = commandName, Line = i};
@@ -428,10 +428,14 @@ namespace RiscVSimulator.Utils
                     switch (res.Register[10].Value)
                     {
                         case 1:
-                            if(res.Register[11].Value < 0)
-                                throw new SimulatorException { ErrorMessage = $"ecall code 1 cannot get negative number as argument{res.Register[11].Value} " };
+                            if (res.Register[11].Value < 0)
+                                throw new SimulatorException
+                                {
+                                    ErrorMessage =
+                                        $"ecall code 1 cannot get negative number as argument{res.Register[11].Value} "
+                                };
 
-                            res.StackDynamicDataFreePosition += (uint)res.Register[11].Value;
+                            res.StackDynamicDataFreePosition += (uint) res.Register[11].Value;
                             break;
                         case 2:
                             res.Register[12].Value = new Random().Next(0, res.Register[11].Value);
@@ -440,18 +444,22 @@ namespace RiscVSimulator.Utils
                             res.alphanumericData.Output = new List<string>();
                             break;
                         case 4:
-                            if(res.Register[11].Value < 0 || res.Register[11].Value > 32)
-                                throw new SimulatorException { ErrorMessage = $"ecall code 4 can only get numbers 0~32 at register a1" };
-                            res.alphanumericData.Output.Add($"The number in register '{res.Register[res.Register[11].Value].Name}' : {res.Register[res.Register[11].Value].Value}");
+                            if (res.Register[11].Value < 0 || res.Register[11].Value > 32)
+                                throw new SimulatorException
+                                    {ErrorMessage = $"ecall code 4 can only get numbers 0~32 at register a1"};
+                            res.alphanumericData.Output.Add(
+                                $"The number in register '{res.Register[res.Register[11].Value].Name}' : {res.Register[res.Register[11].Value].Value}");
                             break;
                         case 5:
-                            res.alphanumericData.Output.Add($"The ASCI code in register '{res.Register[res.Register[11].Value].Name}' is {Convert.ToChar(res.Register[res.Register[11].Value].Value)}");
+                            res.alphanumericData.Output.Add(
+                                $"The ASCI code in register '{res.Register[res.Register[11].Value].Name}' is {Convert.ToChar(res.Register[res.Register[11].Value].Value)}");
                             break;
                         case 6:
-                            res.alphanumericData.Output.Add($"The string locate at address '{res.Register[11].Value}' is {GetString(res.Register[11].Value,res.Memory)}");
+                            res.alphanumericData.Output.Add(
+                                $"The string locate at address '{res.Register[11].Value}' is {GetString(res.Register[11].Value, res.Memory)}");
                             break;
                         case 7:
-                            if (string.IsNullOrEmpty(res.alphanumericData.Input) )
+                            if (string.IsNullOrEmpty(res.alphanumericData.Input))
                             {
                                 res.alphanumericData.Output.Add($"Please Enter Your 'string' you want to search");
                                 res.alphanumericData.Line = res.Register[10].Value;
@@ -459,8 +467,10 @@ namespace RiscVSimulator.Utils
                                 break;
                             }
 
-                            res.alphanumericData.Output.Add(GetStringAddressMemory(res.alphanumericData.Input,stringTable));
+                            res.alphanumericData.Output.Add(GetStringAddressMemory(res.alphanumericData.Input,
+                                stringTable));
                             res.alphanumericData.Line = -1;
+                            res.alphanumericData.Input = "";
                             break;
                         case 8:
                             if (string.IsNullOrEmpty(res.alphanumericData.Input))
@@ -477,47 +487,49 @@ namespace RiscVSimulator.Utils
                             res.Register[11].Value = res.alphanumericData.LastChar;
                             break;
                         case 10:
-                            res.GraphicBorder.Add(CreatePoint(res.Register[11].Value, res.Register[12].Value, res.Register[13].Value));
+                            res.GraphicBorder.Add(CreatePoint(res.Register[11].Value, res.Register[12].Value,
+                                res.Register[13].Value));
                             break;
                         case 11:
-                            res.Register[13].Value = GetColor(res.Register[11].Value, res.Register[12].Value, res.GraphicBorder);
+                            res.Register[13].Value = GetColor(res.Register[11].Value, res.Register[12].Value,
+                                res.GraphicBorder);
                             break;
                         case 12:
                             for (int i = 0; i < 21; i++)
                             {
-                                for (int j = 0; j < 10; j++)
+                                for (int j = 0; j < 21; j++)
                                 {
                                     res.GraphicBorder.Add(CreatePoint(i, j, res.Register[11].Value));
                                 }
                             }
+
                             break;
                         case 13:
-                                for (int j = 0; j < 10; j++)
-                                {
-                                    res.GraphicBorder.Add(CreatePoint(4, j, res.Register[11].Value));
-                                }
+                            for (int j = 0; j < 10; j++)
+                            {
+                                res.GraphicBorder.Add(CreatePoint(4, j, res.Register[11].Value));
+                            }
+
                             break;
                         case 14:
-                                res.GraphicBorder.Add(CreatePoint(2, 10, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(3, 9, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(3, 11, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(4, 8, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(4, 12, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(5, 7, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(5, 13, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(6, 7, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(6, 13, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(7, 8, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(7, 12, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(8, 9, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(8, 11, res.Register[11].Value));
-                                res.GraphicBorder.Add(CreatePoint(9, 10, res.Register[11].Value));
-
-
+                            res.GraphicBorder.Add(CreatePoint(2, 10, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(3, 9, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(3, 11, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(4, 8, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(4, 12, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(5, 7, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(5, 13, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(6, 7, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(6, 13, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(7, 8, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(7, 12, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(8, 9, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(8, 11, res.Register[11].Value));
+                            res.GraphicBorder.Add(CreatePoint(9, 10, res.Register[11].Value));
                             break;
                         default:
-                            throw new SimulatorException { ErrorMessage = $"bad ecall argument  '{res.Register[10].Value}' " };
-
+                            throw new SimulatorException
+                                {ErrorMessage = $"bad ecall argument  '{res.Register[10].Value}' "};
                     }
                     break;
             }

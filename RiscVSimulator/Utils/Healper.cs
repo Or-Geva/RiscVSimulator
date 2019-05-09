@@ -25,14 +25,17 @@ namespace RiscVSimulator.Utils
                         j = 0;
                 }
 
-                if (programTextArray[i][j].Contains(','))
+                if (continiueLoop)
                 {
-                    result.AddRange(
-                        programTextArray[i][j].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
-                }
-                else
-                {
-                    result.Add(programTextArray[i][j]);
+                    if (programTextArray[i][j].Contains(','))
+                    {
+                        result.AddRange(
+                            programTextArray[i][j].Split(',').Where(s => !string.IsNullOrWhiteSpace(s)).ToList());
+                    }
+                    else
+                    {
+                        result.Add(programTextArray[i][j]);
+                    }
                 }
 
             }

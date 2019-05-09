@@ -19,5 +19,12 @@ namespace RiscVSimulator.Model
             Line = -1;
             LastChar = -1;
         }
+
+        public AlphanumericData(AlphanumericData toCopy)
+        {
+            Output = new List<string>(toCopy.Output);
+            Line = toCopy.Line;
+            LastChar = toCopy.LastChar;
+        }
     }
 }

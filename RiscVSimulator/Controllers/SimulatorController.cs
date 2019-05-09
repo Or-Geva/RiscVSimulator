@@ -177,16 +177,19 @@ namespace RiscVSimulator.Controllers
             {
                 return BadRequest(new ErrorInResult {Line = e.Line, Message = e.Message});
             }
+
             catch (Exception e)
             {
                 return BadRequest(new ErrorInResult {Message = "Internal Error"});
             }
 
 
-            if (req.DebugMode)
-                return Ok(debugRes);
+
             if (res.alphanumericData.Line == -1)
-                return Ok(res);
+                if (req.DebugMode)
+                    return Ok(debugRes);
+                else
+                    return Ok(res);
             return Ok(new ContinueProgramResult
             {
                 res = res,
@@ -207,89 +210,100 @@ namespace RiscVSimulator.Controllers
                 return;
 
             bool finishExe = false;
-
-            while (finishExe == false)
+            try
             {
-                command = commandsToExe[(uint) res.Register[32].Value].Instraction;
-                line = commandsToExe[(uint)res.Register[32].Value].Line;
-                args = commandsToExe[(uint)res.Register[32].Value].Args;
-                switch (command)
-                {
-                    case "add":
-                    case "sub":
-                    case "sll":
-                    case "slt":
-                    case "sltu":
-                    case "xor":
-                    case "srl":
-                    case "sra":
-                    case "or":
-                    case "and":
-                        Instructions.ExeRInstruction(res, command,args);
-                        break;
-                    case "srai":
-                    case "slli":
-                    case "srli":
-                        Instructions.ExeShamtIInstruction(res, command, args);
-                        break;
-                    case "addi":
-                    case "slti":
-                    case "sltiu":
-                    case "xori":
-                    case "ori":
-                    case "andi":
-                    case "jalr":
-                        Instructions.ExeIInstruction(res, command,args);
-                        break;
-                    case "lb":
-                    case "lh":
-                    case "lw":
-                    case "lbu":
-                    case "lhu":
-                        Instructions.ExeLoadInstruction(res, command, args);
-                        break;
-                    case "sb":
-                    case "sh":
-                    case "sw":
-                        Instructions.ExeStoreInstruction(res, command, args);
-                        break;
-                    case "beq":
-                    case "bne":
-                    case "blt":
-                    case "bge":
-                    case "bltu":
-                    case "bgeu":
-                        Instructions.ExeBInstruction(res, command, args);
-                        break;
-                    case "lui":
-                    case "auipc":
-                        Instructions.ExeUInstruction(res, command, args);
-                        break;
-                    case "jal":
-                    case "j":
-                        Instructions.ExeJInstruction(res, command, args);
-                        break;
-                    case "ecall":
-                    case "ebreak":
-                        Instructions.ExeEInstruction(res, command, args,ref finishExe, stringTable);
-                        break;
-                    default:
-                        throw new SimulatorException
-                            {ErrorMessage = $"'unknown '{command}' command"};
-                }
 
-                res.Register[32].Value += 4;
+                while (finishExe == false)
+                {
+                    command = commandsToExe[(uint) res.Register[32].Value].Instraction;
+                    line = commandsToExe[(uint) res.Register[32].Value].Line;
+                    args = commandsToExe[(uint) res.Register[32].Value].Args;
 
-                if (commandsToExe.ContainsKey((uint)res.Register[32].Value) == false)
-                {
-                    debugRes.Add(new RiscVProgramResult(res, line));
-                    finishExe = true;
-                }
-                else
-                {
-                    if (DebugMode)
+                    switch (command)
+                    {
+                        case "add":
+                        case "sub":
+                        case "sll":
+                        case "slt":
+                        case "sltu":
+                        case "xor":
+                        case "srl":
+                        case "sra":
+                        case "or":
+                        case "and":
+                            Instructions.ExeRInstruction(res, command, args);
+                            break;
+                        case "srai":
+                        case "slli":
+                        case "srli":
+                            Instructions.ExeShamtIInstruction(res, command, args);
+                            break;
+                        case "addi":
+                        case "slti":
+                        case "sltiu":
+                        case "xori":
+                        case "ori":
+                        case "andi":
+                        case "jalr":
+                            Instructions.ExeIInstruction(res, command, args);
+                            break;
+                        case "lb":
+                        case "lh":
+                        case "lw":
+                        case "lbu":
+                        case "lhu":
+                            Instructions.ExeLoadInstruction(res, command, args);
+                            break;
+                        case "sb":
+                        case "sh":
+                        case "sw":
+                            Instructions.ExeStoreInstruction(res, command, args);
+                            break;
+                        case "beq":
+                        case "bne":
+                        case "blt":
+                        case "bge":
+                        case "bltu":
+                        case "bgeu":
+                            Instructions.ExeBInstruction(res, command, args);
+                            break;
+                        case "lui":
+                        case "auipc":
+                            Instructions.ExeUInstruction(res, command, args);
+                            break;
+                        case "jal":
+                        case "j":
+                            Instructions.ExeJInstruction(res, command, args);
+                            break;
+                        case "ecall":
+                        case "ebreak":
+                            Instructions.ExeEInstruction(res, command, args, ref finishExe, stringTable);
+                            break;
+                        default:
+                            throw new SimulatorException {ErrorMessage = $"'unknown '{command}' command"};
+                    }
+
+                    res.Register[32].Value += 4;
+
+                    if (commandsToExe.ContainsKey((uint) res.Register[32].Value) == false)
+                    {
                         debugRes.Add(new RiscVProgramResult(res, line));
+                        finishExe = true;
+                    }
+                    else
+                    {
+                        if (DebugMode)
+                            debugRes.Add(new RiscVProgramResult(res, line));
+                    }
                 }
+            }
+            catch (SimulatorException e)
+            {
+                throw new ErrorInResult {Line = line , Message = e.ErrorMessage};
+            }
+            catch (Exception e)
+            {
+                throw new ErrorInResult {Line = line , Message = "Internal Error"};
             }
         }
 
@@ -451,6 +465,7 @@ namespace RiscVSimulator.Controllers
         [HttpPost("ProgramToContinue")]
         public async Task<ActionResult> ProgramToContinue([FromBody] ContinueProgramResult req)
         {
+            int lastLine = req.debugRes.Count != 0 ? req.debugRes.Count : 0;
             req.res.alphanumericData.Input = req.res.alphanumericData.Input.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s)).ToArray().Last();
            var lastChar = req.res.alphanumericData.Input.LastOrDefault();
            if (string.IsNullOrEmpty(lastChar.ToString()))
@@ -473,17 +488,21 @@ namespace RiscVSimulator.Controllers
                 return BadRequest(new ErrorInResult { Message = "Internal Error" });
             }
 
-            if (req.DebugMode)
-                return Ok(req.debugRes);
             if (req.res.alphanumericData.Line == -1)
-                return Ok(req.res);
-            return Ok(new ContinueProgramResult
+                if (req.DebugMode)
+                    return Ok(req.debugRes);
+                else
+                    return Ok(req.res);
+            if (lastLine > 0)//if we receved debug program we overight the ecall question with its answer
+                req.debugRes.RemoveAt(lastLine - 1);
+                return Ok(new ContinueProgramResult
             {
                 res = req.res,
                 commandsToExe = req.commandsToExe,
                 debugRes = req.debugRes,
-                DebugMode = req.DebugMode
-            });
+                DebugMode = req.DebugMode,
+                stringTable = req.stringTable
+                });
         }
 
         private int ParseCommandWithNoImm(string[][] programTextArray, ref int i, ref int j,

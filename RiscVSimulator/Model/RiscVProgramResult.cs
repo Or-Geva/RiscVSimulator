@@ -69,11 +69,9 @@ namespace RiscVSimulator.Model
                     Name = result.Register[i].Name,
                     Value = result.Register[i].Value
                 };
-            this.alphanumericData = alphanumericData;
             DebugLine = debugline;
-            GraphicBorder = result.GraphicBorder;
-            alphanumericData = result.alphanumericData;
-
+            GraphicBorder = new List<GraphicBorder>(result.GraphicBorder);
+            alphanumericData = new AlphanumericData(result.alphanumericData);
         }
    
         public RiscVProgramResult()
