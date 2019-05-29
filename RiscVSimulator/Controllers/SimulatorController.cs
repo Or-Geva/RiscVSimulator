@@ -15,7 +15,6 @@ using RiscVSimulator.Utils;
 namespace RiscVSimulator.Controllers
 
 {
-    [EnableCors("SiteCorsPolicy")]
     [Route("api/[controller]")]
     [ApiController]
     public class SimulatorController : Controller
@@ -171,6 +170,7 @@ namespace RiscVSimulator.Controllers
             try
             {
                 DoSecondParse(res, debugRes, req.DebugMode, uncompleteParse, labelTable, commandsToExe);
+                res.Register[32].Value = (int) commandsToExe.FirstOrDefault().Key;
                 ExeProgram(res, debugRes, commandsToExe, req.DebugMode, stringTable);
             }
             catch (ErrorInResult e)
@@ -208,7 +208,6 @@ namespace RiscVSimulator.Controllers
             List<string> args = new List<string>();
             if (commandsToExe.Count == 0)
                 return;
-
             bool finishExe = false;
             try
             {

@@ -4,7 +4,7 @@
     "anonymousAuthentication": true,
     "iisExpress": {
       "applicationUrl": "http://localhost:65394",
-      "sslPort": 44398
+      "sslPort": 0
     }
   },
   "$schema": "http://json.schemastore.org/launchsettings.json",
@@ -13,7 +13,7 @@
       "commandName": "IISExpress",
       "launchUrl": "api/values",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Production"
       }
     },
     "RiscVSimulator": {

@@ -505,7 +505,7 @@ namespace RiscVSimulator.Utils
 
                             break;
                         case 13:
-                            for (int j = 0; j < 10; j++)
+                            for (int j = 0; j < 20; j++)
                             {
                                 res.GraphicBorder.Add(CreatePoint(4, j, res.Register[11].Value));
                             }
