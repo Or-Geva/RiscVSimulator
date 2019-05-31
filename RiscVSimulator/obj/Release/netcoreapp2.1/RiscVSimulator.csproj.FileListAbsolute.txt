@@ -11,3 +11,4 @@ C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Release\netcoreapp
 C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Release\netcoreapp2.1\RiscVSimulator.RazorTargetAssemblyInfo.cache
 C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Release\netcoreapp2.1\RiscVSimulator.dll
 C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Release\netcoreapp2.1\RiscVSimulator.pdb
+C:\Users\Posty\source\repos\RiscVSimulator\RiscVSimulator\obj\Release\netcoreapp2.1\RiscVSimulator.csprojAssemblyReference.cache
