@@ -40,14 +40,15 @@ namespace RiscVSimulator.Controllers
             var programTextArray = new string[TextArray.Length][];
             for (int i = 0; i < TextArray.Length; i++)
             {
-                programTextArray[i] = TextArray[i].Split(' ', '\t', '\r').Where(s => !string.IsNullOrWhiteSpace(s))
+                programTextArray[i] = TextArray[i].Split('#').FirstOrDefault()?.Split(' ', '\t', '\r').Where(s => !string.IsNullOrWhiteSpace(s))
                     .ToArray();
-                ;
+             /*   programTextArray[i] = TextArray[i].Split(' ', '\t', '\r').Where(s => !string.IsNullOrWhiteSpace(s))
+                    .ToArray();
                 if (programTextArray[i].FirstOrDefault(x => x.StartsWith('#')) != null)
                 {
                     var index = programTextArray[i].IndexOf(programTextArray[i].FirstOrDefault(x => x.StartsWith('#')));
                     programTextArray[i] = programTextArray[i].Take(index).ToArray();
-                }
+                }*/
             }
 
             bool newLabel = false;
